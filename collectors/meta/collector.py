@@ -328,6 +328,19 @@ class MetaAdCollector(BaseAdCollector):
         seen_ad_ids: set = set()
         total_ads = 0
         total_duplicates = 0
+        # Build initial parameters
+        params = {
+            "access_token": self.access_token,
+            "ad_reached_countries": country_code,
+            "ad_type": self.ad_type,
+            "ad_active_status": "ALL",
+            "ad_delivery_date_min": start_date.strftime("%Y-%m-%d"),
+            "ad_delivery_date_max": end_date.strftime("%Y-%m-%d"),
+            "search_terms": "*",  # Required - * returns all political ads
+            "fields": self.fields,
+            "limit": self.default_limit
+        }
+
 
         # Get search terms - use list from config or default
         search_terms = self.search_terms if self.search_terms else [""]
