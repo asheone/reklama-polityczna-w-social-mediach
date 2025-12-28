@@ -49,7 +49,7 @@ class MetaAdCollector(BaseAdCollector):
 
     # API endpoints
     BASE_URL = "https://graph.facebook.com"
-    DEFAULT_API_VERSION = "v21.0"  # Latest stable version
+    DEFAULT_API_VERSION = "v24.0"
     ADS_ARCHIVE_ENDPOINT = "ads_archive"
 
     # Default fields to fetch
