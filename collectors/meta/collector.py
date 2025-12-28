@@ -49,7 +49,7 @@ class MetaAdCollector(BaseAdCollector):
 
     # API endpoints
     BASE_URL = "https://graph.facebook.com"
-    DEFAULT_API_VERSION = "v19.0"
+    DEFAULT_API_VERSION = "v21.0"  # Latest stable version
     ADS_ARCHIVE_ENDPOINT = "ads_archive"
 
     # Default fields to fetch
@@ -160,6 +160,7 @@ class MetaAdCollector(BaseAdCollector):
                 "access_token": self.access_token,
                 "ad_reached_countries": "PL",
                 "ad_type": self.ad_type,
+                "search_terms": "",  # Required parameter - empty string returns all ads
                 "fields": "id",
                 "limit": 1
             }
@@ -239,6 +240,28 @@ class MetaAdCollector(BaseAdCollector):
                     platform="meta",
                     details={"error_code": error_code}
                 )
+            elif error_code == 1:
+                # Error code 1 is a generic "unknown error" - often related to:
+                # - Temporary API issues
+                # - Missing required parameters
+                # - Token format issues
+                raise AuthenticationError(
+                    message=(
+                        "Meta API returned 'unknown error' (code 1). This usually means:\n"
+                        "  1. Temporary API issue - try again in a few minutes\n"
+                        "  2. Token needs 'ads_read' permission - regenerate at Graph API Explorer\n"
+                        "  3. App needs Marketing API access - check app settings\n"
+                        "\n"
+                        "To get a working token:\n"
+                        "  1. Go to https://developers.facebook.com/tools/explorer/\n"
+                        "  2. Select your app (or 'Meta App' for testing)\n"
+                        "  3. Click 'Add Permission' → 'Ads Management' → select 'ads_read'\n"
+                        "  4. Click 'Generate Access Token'\n"
+                        "  5. Copy the token to your .env file"
+                    ),
+                    platform="meta",
+                    details={"error_code": error_code, "error_type": error_type}
+                )
             else:
                 raise AuthenticationError(
                     message=f"Authentication failed (code {error_code}): {error_message}",
@@ -295,6 +318,7 @@ class MetaAdCollector(BaseAdCollector):
             "ad_active_status": "ALL",
             "ad_delivery_date_min": start_date.strftime("%Y-%m-%d"),
             "ad_delivery_date_max": end_date.strftime("%Y-%m-%d"),
+            "search_terms": "",  # Required - empty string returns all political ads
             "fields": self.fields,
             "limit": self.default_limit
         }

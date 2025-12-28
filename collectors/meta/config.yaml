@@ -4,7 +4,7 @@
 api:
   base_url: https://graph.facebook.com
   endpoint: ads_archive
-  version: v19.0
+  version: v21.0  # Use latest stable version
 
   # Fields to fetch from the API
   # See: https://developers.facebook.com/docs/marketing-api/reference/ad-library/
