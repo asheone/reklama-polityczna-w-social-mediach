@@ -1,0 +1,29 @@
+# Global configuration for all collectors
+# This file contains shared settings used across platforms
+
+# Output settings
+output:
+  batch_size: 10000
+  format: ndjson
+  compression: false  # Set to true for production
+
+# Logging configuration
+logging:
+  level: INFO
+  format: colored  # Use 'json' for production
+
+# Google Cloud Platform settings
+gcp:
+  project_id: ${GCP_PROJECT_ID}
+  bucket_name: polish-political-ads
+  dataset_name: political_ads_raw
+  location: EU
+
+# Checkpoint settings
+checkpoint:
+  mode: local  # 'local' for development, 'gcs' for production
+  save_every_n_records: 1000
+
+# Countries to collect ads from
+countries:
+  - PL  # Poland

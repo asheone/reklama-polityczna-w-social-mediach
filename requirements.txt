@@ -1,0 +1,22 @@
+# Political Ad Collector - Core Dependencies
+
+# HTTP requests
+requests>=2.31.0
+
+# Configuration
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+
+# Date handling
+python-dateutil>=2.8.2
+
+# Retry logic
+tenacity>=8.2.3
+
+# Progress bars (optional, for CLI)
+tqdm>=4.66.1
+
+# Google Cloud (optional - only needed for GCS mode)
+google-cloud-storage>=2.14.0
+google-cloud-secret-manager>=2.16.4
+google-cloud-bigquery>=3.14.0

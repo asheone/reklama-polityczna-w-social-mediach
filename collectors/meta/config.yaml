@@ -1,0 +1,81 @@
+# Meta Ad Library API configuration
+# Documentation: https://www.facebook.com/ads/library/api/
+
+api:
+  base_url: https://graph.facebook.com
+  endpoint: ads_archive
+  version: v19.0
+
+  # Fields to fetch from the API
+  # See: https://developers.facebook.com/docs/marketing-api/reference/ad-library/
+  fields: >-
+    id,
+    ad_creation_time,
+    ad_creative_bodies,
+    ad_creative_link_captions,
+    ad_creative_link_descriptions,
+    ad_creative_link_titles,
+    ad_delivery_start_time,
+    ad_delivery_stop_time,
+    ad_snapshot_url,
+    bylines,
+    currency,
+    delivery_by_region,
+    demographic_distribution,
+    estimated_audience_size,
+    eu_total_reach,
+    impressions,
+    languages,
+    page_id,
+    page_name,
+    publisher_platforms,
+    spend,
+    target_ages,
+    target_gender,
+    target_locations
+
+# Query defaults
+query:
+  # Country code for ad targeting
+  ad_reached_countries: PL
+
+  # Ad type filter
+  # Options: ALL, POLITICAL_AND_ISSUE_ADS, HOUSING_ADS, EMPLOYMENT_ADS, CREDIT_ADS
+  ad_type: POLITICAL_AND_ISSUE_ADS
+
+  # Ad status filter
+  # Options: ALL, ACTIVE, INACTIVE
+  ad_active_status: ALL
+
+  # Number of ads per API request (max 1000)
+  default_limit: 500
+
+# Rate limiting configuration
+rate_limiting:
+  # Meta allows ~200 requests per minute for most apps
+  requests_per_minute: 180
+
+  # Allow short bursts above the limit
+  burst_allowance: 5
+
+  # Exponential backoff multiplier for retries
+  backoff_multiplier: 2
+
+  # Maximum number of retry attempts
+  max_retries: 3
+
+  # Initial delay (seconds) when rate limited
+  retry_delay_seconds: 60
+
+# Checkpoint configuration
+checkpoint:
+  # Save checkpoint every N records
+  save_every_n_records: 1000
+
+# Output configuration
+output:
+  # Records per batch file
+  batch_size: 10000
+
+  # Compress output files (gzip)
+  compress: false
