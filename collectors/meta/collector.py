@@ -151,6 +151,10 @@ class MetaAdCollector(BaseAdCollector):
         try:
             self.logger.info("Testing Meta API credentials...")
 
+            # Log token info (masked) for debugging
+            token_preview = self.access_token[:10] + "..." if len(self.access_token) > 10 else "***"
+            self.logger.debug(f"Using token: {token_preview} (length: {len(self.access_token)})")
+
             url = f"{self.base_url}/{self.ADS_ARCHIVE_ENDPOINT}"
             params = {
                 "access_token": self.access_token,
@@ -160,38 +164,103 @@ class MetaAdCollector(BaseAdCollector):
                 "limit": 1
             }
 
+            self.logger.debug(f"Request URL: {url}")
             response = requests.get(url, params=params, timeout=30)
 
+            self.logger.debug(f"Response status: {response.status_code}")
+
             if response.status_code == 200:
-                self.logger.info("Meta API credentials validated successfully")
+                data = response.json()
+                ad_count = len(data.get("data", []))
+                self.logger.info(f"Meta API credentials validated successfully (found {ad_count} test ads)")
                 return True
 
-            # Handle specific error cases
-            error_data = response.json().get("error", {})
-            error_code = error_data.get("code")
-            error_message = error_data.get("message", "Unknown error")
-
-            if error_code == 190:  # Invalid access token
+            # Try to parse error response
+            try:
+                response_json = response.json()
+                self.logger.debug(f"Error response: {response_json}")
+            except ValueError:
+                self.logger.error(f"Non-JSON error response: {response.text[:500]}")
                 raise AuthenticationError(
-                    message=f"Invalid access token: {error_message}",
+                    message=f"API returned non-JSON response (HTTP {response.status_code}): {response.text[:200]}",
                     platform="meta"
                 )
-            elif error_code == 4:  # Rate limit
+
+            # Handle specific error cases
+            error_data = response_json.get("error", {})
+            error_code = error_data.get("code")
+            error_subcode = error_data.get("error_subcode")
+            error_message = error_data.get("message", "Unknown error")
+            error_type = error_data.get("type", "Unknown")
+
+            self.logger.error(f"API Error - Code: {error_code}, Subcode: {error_subcode}, Type: {error_type}")
+            self.logger.error(f"Error message: {error_message}")
+
+            # Provide helpful messages for common errors
+            if error_code == 190:
+                if error_subcode == 463:
+                    raise AuthenticationError(
+                        message="Access token has expired. Generate a new token at https://developers.facebook.com/tools/explorer/",
+                        platform="meta",
+                        details={"error_code": error_code, "error_subcode": error_subcode}
+                    )
+                elif error_subcode == 460:
+                    raise AuthenticationError(
+                        message="Password changed. Generate a new token at https://developers.facebook.com/tools/explorer/",
+                        platform="meta",
+                        details={"error_code": error_code, "error_subcode": error_subcode}
+                    )
+                else:
+                    raise AuthenticationError(
+                        message=f"Invalid access token: {error_message}",
+                        platform="meta",
+                        details={"error_code": error_code, "error_subcode": error_subcode}
+                    )
+            elif error_code == 4:
                 raise RateLimitError(
-                    message="Rate limit hit during authentication test",
+                    message="Rate limit hit during authentication test. Wait a few minutes and try again.",
                     platform="meta"
+                )
+            elif error_code == 10:
+                raise AuthenticationError(
+                    message="Permission denied. Ensure your app has 'ads_read' permission and is approved for Marketing API.",
+                    platform="meta",
+                    details={"error_code": error_code}
+                )
+            elif error_code == 100:
+                raise AuthenticationError(
+                    message=f"Invalid parameter: {error_message}. Check API version and field names.",
+                    platform="meta",
+                    details={"error_code": error_code}
+                )
+            elif error_code == 200:
+                raise AuthenticationError(
+                    message="Permission error. Your app may not have access to the Ad Library API.",
+                    platform="meta",
+                    details={"error_code": error_code}
                 )
             else:
                 raise AuthenticationError(
-                    message=f"Authentication failed: {error_message}",
+                    message=f"Authentication failed (code {error_code}): {error_message}",
                     platform="meta",
-                    details={"error_code": error_code}
+                    details={
+                        "error_code": error_code,
+                        "error_subcode": error_subcode,
+                        "error_type": error_type,
+                        "full_error": error_data
+                    }
                 )
 
         except requests.RequestException as e:
             self.logger.error(f"Network error during authentication: {e}")
             raise AuthenticationError(
                 message=f"Network error: {e}",
+                platform="meta"
+            )
+        except ValueError as e:
+            self.logger.error(f"JSON parsing error: {e}")
+            raise AuthenticationError(
+                message=f"Failed to parse API response: {e}",
                 platform="meta"
             )
 
