@@ -40,8 +40,32 @@ query:
   ad_reached_countries: PL
 
   # Ad type filter
+  # NOTE: For EU countries, POLITICAL_AND_ISSUE_ADS is blocked by Meta API
+  # Use ALL and filter by search_terms or page names instead
   # Options: ALL, POLITICAL_AND_ISSUE_ADS, HOUSING_ADS, EMPLOYMENT_ADS, CREDIT_ADS
-  ad_type: POLITICAL_AND_ISSUE_ADS
+  ad_type: ALL
+
+  # Search terms to find political ads (since ad_type filter doesn't work for EU)
+  # These will be searched one at a time to collect political/issue ads
+  # Includes Polish political keywords, party names, key politicians
+  search_terms:
+    - "wybory"
+    - "głosuj"
+    - "partia"
+    - "sejm"
+    - "PiS"
+    - "Prawo i Sprawiedliwość"
+    - "Koalicja Obywatelska"
+    - "Platforma Obywatelska"
+    - "Lewica"
+    - "Konfederacja"
+    - "PSL"
+    - "Polska 2050"
+    - "Trzecia Droga"
+    - "Tusk"
+    - "Kaczyński"
+    - "Morawiecki"
+    - "Hołownia"
 
   # Ad status filter
   # Options: ALL, ACTIVE, INACTIVE

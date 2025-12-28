@@ -115,7 +115,12 @@ class MetaAdCollector(BaseAdCollector):
         # Query defaults
         query_config = config.get("query", {})
         self.default_limit = query_config.get("default_limit", 500)
-        self.ad_type = query_config.get("ad_type", "POLITICAL_AND_ISSUE_ADS")
+        self.ad_type = query_config.get("ad_type", "ALL")
+
+        # Search terms for EU countries where POLITICAL_AND_ISSUE_ADS is blocked
+        self.search_terms = query_config.get("search_terms", [])
+        if isinstance(self.search_terms, str):
+            self.search_terms = [self.search_terms]
 
         # Rate limiting
         rate_config = config.get("rate_limiting", {})
@@ -156,14 +161,20 @@ class MetaAdCollector(BaseAdCollector):
             self.logger.debug(f"Using token: {token_preview} (length: {len(self.access_token)})")
 
             url = f"{self.base_url}/{self.ADS_ARCHIVE_ENDPOINT}"
+
+            # Use first search term for test, or a generic Polish term
+            test_search = self.search_terms[0] if self.search_terms else "Polska"
+
             params = {
                 "access_token": self.access_token,
                 "ad_reached_countries": "PL",
                 "ad_type": self.ad_type,
-                "search_terms": "",  # Required parameter - empty string returns all ads
+                "search_terms": test_search,
                 "fields": "id",
                 "limit": 1
             }
+
+            self.logger.debug(f"Testing with search_terms='{test_search}'")
 
             self.logger.debug(f"Request URL: {url}")
             response = requests.get(url, params=params, timeout=30)
@@ -296,6 +307,9 @@ class MetaAdCollector(BaseAdCollector):
         """
         Fetch all political ads in the specified date range.
 
+        For EU countries, iterates through multiple search terms since
+        POLITICAL_AND_ISSUE_ADS filter is not available.
+
         Handles pagination, rate limiting, and checkpointing automatically.
 
         Args:
@@ -310,101 +324,125 @@ class MetaAdCollector(BaseAdCollector):
             f"Fetching ads from {start_date} to {end_date} for {country_code}"
         )
 
-        # Build initial parameters
-        params = {
-            "access_token": self.access_token,
-            "ad_reached_countries": country_code,
-            "ad_type": self.ad_type,
-            "ad_active_status": "ALL",
-            "ad_delivery_date_min": start_date.strftime("%Y-%m-%d"),
-            "ad_delivery_date_max": end_date.strftime("%Y-%m-%d"),
-            "search_terms": "",  # Required - empty string returns all political ads
-            "fields": self.fields,
-            "limit": self.default_limit
-        }
+        # Track seen ad IDs to avoid duplicates across search terms
+        seen_ad_ids: set = set()
+        total_ads = 0
+        total_duplicates = 0
 
-        # Check for existing checkpoint
-        cursor = self.checkpoint_manager.get_cursor()
-        if cursor:
-            params["after"] = cursor
-            self.logger.info(f"Resuming from checkpoint cursor: {cursor[:20]}...")
+        # Get search terms - use list from config or default
+        search_terms = self.search_terms if self.search_terms else [""]
+
+        self.logger.info(f"Using {len(search_terms)} search terms to find political ads")
 
         url = f"{self.base_url}/{self.ADS_ARCHIVE_ENDPOINT}"
-        page_count = 0
-        total_ads = 0
 
-        while True:
-            # Rate limiting
-            self.rate_limiter.wait_if_needed()
-
-            # Make request with retry logic
-            try:
-                response_data = self._make_request(url, params)
-            except RateLimitError:
-                # Rate limit handled by retry logic in _make_request
-                continue
-            except APIError as e:
-                self.logger.error(f"API error: {e}")
-                raise
-
-            page_count += 1
-            ads = response_data.get("data", [])
-            ads_in_page = len(ads)
-            total_ads += ads_in_page
-
-            self.logger.debug(
-                f"Page {page_count}: {ads_in_page} ads (total: {total_ads})"
+        for term_index, search_term in enumerate(search_terms):
+            self.logger.info(
+                f"[{term_index + 1}/{len(search_terms)}] Searching for: '{search_term}'"
             )
 
-            # Yield each ad
-            for ad in ads:
-                yield ad
+            # Build parameters for this search term
+            params = {
+                "access_token": self.access_token,
+                "ad_reached_countries": country_code,
+                "ad_type": self.ad_type,
+                "ad_active_status": "ALL",
+                "ad_delivery_date_min": start_date.strftime("%Y-%m-%d"),
+                "ad_delivery_date_max": end_date.strftime("%Y-%m-%d"),
+                "search_terms": search_term,
+                "fields": self.fields,
+                "limit": self.default_limit
+            }
 
-                # Update checkpoint periodically
-                self._records_since_checkpoint += 1
-                if self._records_since_checkpoint >= self.checkpoint_interval:
-                    cursor = response_data.get("paging", {}).get("cursors", {}).get("after")
-                    if cursor:
-                        self.checkpoint_manager.save_cursor(
-                            cursor,
-                            records_in_batch=self._records_since_checkpoint,
-                            additional_data={
-                                "total_fetched": total_ads,
-                                "pages_processed": page_count,
-                                "date_range": f"{start_date} to {end_date}"
-                            }
-                        )
-                        self._records_since_checkpoint = 0
+            page_count = 0
+            term_ads = 0
 
-            # Check for next page
-            paging = response_data.get("paging", {})
-            if "next" not in paging:
-                self.logger.info(
-                    f"Reached end of results. Total: {total_ads} ads in {page_count} pages"
-                )
-                break
+            while True:
+                # Rate limiting
+                self.rate_limiter.wait_if_needed()
 
-            # Update params for next page
-            next_cursor = paging.get("cursors", {}).get("after")
-            if next_cursor:
-                params["after"] = next_cursor
-            else:
-                break
+                # Make request with retry logic
+                try:
+                    response_data = self._make_request(url, params)
+                except RateLimitError:
+                    continue
+                except APIError as e:
+                    self.logger.error(f"API error for '{search_term}': {e}")
+                    break  # Move to next search term
 
-            # Log progress periodically
-            if page_count % 10 == 0:
-                stats = self.rate_limiter.get_stats()
-                self.logger.info(
-                    f"Progress: {total_ads} ads fetched, "
-                    f"rate limit: {stats['requests_last_minute']}/{stats['requests_per_minute_limit']} rpm"
-                )
+                page_count += 1
+                ads = response_data.get("data", [])
+
+                if not ads:
+                    break
+
+                # Yield each ad (deduplicated)
+                for ad in ads:
+                    ad_id = ad.get("id")
+                    if ad_id and ad_id not in seen_ad_ids:
+                        seen_ad_ids.add(ad_id)
+                        total_ads += 1
+                        term_ads += 1
+
+                        # Add search term metadata
+                        ad["_search_term"] = search_term
+
+                        yield ad
+
+                        # Update checkpoint periodically
+                        self._records_since_checkpoint += 1
+                        if self._records_since_checkpoint >= self.checkpoint_interval:
+                            self.checkpoint_manager.update_progress(
+                                records_processed=total_ads,
+                                additional_data={
+                                    "current_search_term": search_term,
+                                    "term_index": term_index,
+                                    "date_range": f"{start_date} to {end_date}"
+                                }
+                            )
+                            self._records_since_checkpoint = 0
+                    else:
+                        total_duplicates += 1
+
+                # Check for next page
+                paging = response_data.get("paging", {})
+                if "next" not in paging:
+                    break
+
+                next_cursor = paging.get("cursors", {}).get("after")
+                if next_cursor:
+                    params["after"] = next_cursor
+                else:
+                    break
+
+                # Log progress periodically
+                if page_count % 10 == 0:
+                    stats = self.rate_limiter.get_stats()
+                    self.logger.info(
+                        f"  '{search_term}': {term_ads} ads ({page_count} pages), "
+                        f"rate: {stats['requests_last_minute']}/{stats['requests_per_minute_limit']} rpm"
+                    )
+
+            self.logger.info(
+                f"  Completed '{search_term}': {term_ads} unique ads in {page_count} pages"
+            )
+
+            # Remove cursor for next search term
+            if "after" in params:
+                del params["after"]
+
+        # Final summary
+        self.logger.info(
+            f"Fetch complete: {total_ads} unique ads, {total_duplicates} duplicates skipped"
+        )
 
         # Final checkpoint
         self.checkpoint_manager.update_progress(
             records_processed=total_ads,
             additional_data={
                 "status": "completed",
-                "pages_processed": page_count,
+                "search_terms_used": len(search_terms),
+                "duplicates_skipped": total_duplicates,
                 "date_range": f"{start_date} to {end_date}"
             }
         )
