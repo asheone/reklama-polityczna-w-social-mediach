@@ -160,7 +160,7 @@ class MetaAdCollector(BaseAdCollector):
                 "access_token": self.access_token,
                 "ad_reached_countries": "PL",
                 "ad_type": self.ad_type,
-                "search_terms": "",  # Required parameter - empty string returns all ads
+                "search_terms": "*",  # Required parameter - * returns all ads
                 "fields": "id",
                 "limit": 1
             }
@@ -318,7 +318,7 @@ class MetaAdCollector(BaseAdCollector):
             "ad_active_status": "ALL",
             "ad_delivery_date_min": start_date.strftime("%Y-%m-%d"),
             "ad_delivery_date_max": end_date.strftime("%Y-%m-%d"),
-            "search_terms": "",  # Required - empty string returns all political ads
+            "search_terms": "*",  # Required - * returns all political ads
             "fields": self.fields,
             "limit": self.default_limit
         }
