@@ -37,7 +37,7 @@ api:
 # Query defaults
 query:
   # Country code for ad targeting
-  ad_reached_countries: PL
+  ad_reached_countries: EU
 
   # Ad type filter
   # NOTE: For EU countries, POLITICAL_AND_ISSUE_ADS is blocked by Meta API
@@ -45,27 +45,9 @@ query:
   # Options: ALL, POLITICAL_AND_ISSUE_ADS, HOUSING_ADS, EMPLOYMENT_ADS, CREDIT_ADS
   ad_type: ALL
 
-  # Search terms to find political ads (since ad_type filter doesn't work for EU)
-  # These will be searched one at a time to collect political/issue ads
-  # Includes Polish political keywords, party names, key politicians
-  search_terms:
-    - "wybory"
-    - "głosuj"
-    - "partia"
-    - "sejm"
-    - "PiS"
-    - "Prawo i Sprawiedliwość"
-    - "Koalicja Obywatelska"
-    - "Platforma Obywatelska"
-    - "Lewica"
-    - "Konfederacja"
-    - "PSL"
-    - "Polska 2050"
-    - "Trzecia Droga"
-    - "Tusk"
-    - "Kaczyński"
-    - "Morawiecki"
-    - "Hołownia"
+  # Search terms are now loaded from search_terms.yaml file
+  # This allows for easier scaling and management of search terms
+  # If search_terms are specified here, they will override the file
 
   # Ad status filter
   # Options: ALL, ACTIVE, INACTIVE

@@ -12,9 +12,11 @@ import os
 import re
 import time
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import requests
+import yaml
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -115,12 +117,19 @@ class MetaAdCollector(BaseAdCollector):
         # Query defaults
         query_config = config.get("query", {})
         self.default_limit = query_config.get("default_limit", 500)
-        self.ad_type = query_config.get("ad_type", "ALL")
+        self.ad_type = query_config.get("ad_type", "issues_elections_politics")
 
         # Search terms for EU countries where POLITICAL_AND_ISSUE_ADS is blocked
-        self.search_terms = query_config.get("search_terms", [])
-        if isinstance(self.search_terms, str):
-            self.search_terms = [self.search_terms]
+        # Load from separate file, fallback to config if specified
+        search_terms_config = query_config.get("search_terms", [])
+        if search_terms_config:
+            # If search_terms are provided in config, use them (backward compatibility)
+            self.search_terms = search_terms_config
+            if isinstance(self.search_terms, str):
+                self.search_terms = [self.search_terms]
+        else:
+            # Load from separate search_terms.yaml file
+            self.search_terms = self._load_search_terms()
 
         # Rate limiting
         rate_config = config.get("rate_limiting", {})
@@ -141,6 +150,43 @@ class MetaAdCollector(BaseAdCollector):
         self._records_since_checkpoint = 0
 
         self.logger = get_logger("meta_collector")
+
+    def _load_search_terms(self) -> list:
+        """
+        Load search terms from separate search_terms.yaml file.
+
+        Returns:
+            List of search terms, or empty list if file not found
+        """
+        # Try to find search_terms.yaml in the same directory as this module
+        current_dir = Path(__file__).parent
+        search_terms_path = current_dir / "search_terms.yaml"
+
+        if not search_terms_path.exists():
+            self.logger.warning(
+                f"search_terms.yaml not found at {search_terms_path}. "
+                "Using empty search terms list."
+            )
+            return []
+
+        try:
+            with open(search_terms_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                search_terms = data.get("search_terms", [])
+                if not isinstance(search_terms, list):
+                    self.logger.warning(
+                        "search_terms.yaml does not contain a list. Using empty list."
+                    )
+                    return []
+                self.logger.info(
+                    f"Loaded {len(search_terms)} search terms from {search_terms_path}"
+                )
+                return search_terms
+        except Exception as e:
+            self.logger.error(
+                f"Failed to load search_terms.yaml: {e}. Using empty list."
+            )
+            return []
 
     @property
     def platform_name(self) -> str:

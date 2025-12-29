@@ -1,0 +1,79 @@
+# Search terms for Meta Ad Library API
+# Used to find political and issue ads in EU countries where POLITICAL_AND_ISSUE_ADS filter is blocked
+# Each term will be searched separately to collect comprehensive ad data
+
+search_terms:
+  # Elections and voting
+  - "wybory"
+  - "głosuj"
+  - "kampania"
+  - "kandydat"
+
+  # Political parties
+  - "PiS"
+  - "Prawo i Sprawiedliwość"
+  - "KO"
+  - "Koalicja Obywatelska"
+  - "Platforma"
+  - "Lewica"
+  - "Konfederacja"
+  - "PSL"
+
+  # Key politicians
+  - "Tusk"
+  - "Kaczyński"
+  - "Duda"
+  - "Trzaskowski"
+
+  # Social issues
+  - "aborcja"
+  - "prawa kobiet"
+  - "strajk kobiet"
+  - "LGBT"
+  - "związki partnerskie"
+
+  # Immigration
+  - "imigracja"
+  - "uchodźcy"
+  - "migracja"
+
+  # Environment
+  - "klimat"
+  - "Zielony Ład"
+
+  # Rule of law and judiciary
+  - "praworządność"
+  - "sądy"
+
+  # European Union
+  - "Unia Europejska"
+  - "Bruksela"
+
+  # Foreign policy and security
+  - "Ukraina"
+  - "NATO"
+  - "bezpieczeństwo"
+
+  # Economy and taxes
+  - "podatki"
+  - "500+"
+  - "gospodarka"
+
+  # Public services
+  - "służba zdrowia"
+  - "edukacja"
+
+  # Political institutions
+  - "referendum"
+  - "sejm"
+  - "senat"
+
+  # Values and identity
+  - "rodzina"
+  - "wartości"
+  - "patriotyzm"
+
+  # Democracy and rights
+  - "demokracja"
+  - "wolność"
+  - "równość"
